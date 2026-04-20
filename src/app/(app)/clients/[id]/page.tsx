@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Download, FileText } from "lucide-react";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ClientProgressCard } from "@/components/shared/client-progress-card";
+import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -104,9 +105,14 @@ export default async function ClientDetailPage({
               <ClientProgressCard name={client.name} booked={booked} target={client.monthlyMeetingTarget} />
             </ChartCard>
             <Card className="rounded-[28px]">
-              <CardHeader>
-                <CardTitle>Client integrations</CardTitle>
-                <CardDescription>Scheduling, CRM, and API access notes for this account.</CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+                <div className="space-y-1.5">
+                  <CardTitle>Client integrations</CardTitle>
+                  <CardDescription>Scheduling, CRM, and API access notes for this account.</CardDescription>
+                </div>
+                <div className="shrink-0 pt-1">
+                  <CreateCalLinkDialog clientId={client.id} clientName={client.name} />
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {integrations.length ? (
