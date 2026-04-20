@@ -72,8 +72,8 @@ export function LoginForm({ supabaseConfigured }: { supabaseConfigured: boolean 
               id="email"
               name="email"
               type="email"
-              defaultValue="team@pipelineportal.io"
-              placeholder="team@pipelineportal.io"
+              defaultValue={mode === "login" ? "team@pipelineportal.io" : "support@buyerrader.app"}
+              placeholder={mode === "login" ? "team@pipelineportal.io" : "support@buyerrader.app"}
               required
             />
           </div>
@@ -123,7 +123,7 @@ export function LoginForm({ supabaseConfigured }: { supabaseConfigured: boolean 
           {supabaseConfigured
             ? mode === "login"
               ? "Supabase authentication is active for this workspace."
-              : "New accounts will be created in Supabase Auth. Email confirmation behavior depends on your project settings."
+              : "Only support@buyerrader.app can create an account. Email confirmation behavior depends on your Supabase settings."
             : "Demo mode is active. Creating an account will open the portal locally without creating a persistent Supabase user."}
         </div>
       </CardContent>

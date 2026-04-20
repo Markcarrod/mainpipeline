@@ -7,6 +7,8 @@ import { DEMO_AUTH_COOKIE } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+const ALLOWED_SIGNUP_EMAIL = "support@buyerrader.app";
+
 export interface AuthActionState {
   error: string;
   success: string;
@@ -86,6 +88,13 @@ export async function signupAction(
   if (!parsed.success) {
     return {
       error: parsed.error.issues[0]?.message ?? "Check the fields and try again.",
+      success: "",
+    };
+  }
+
+  if (parsed.data.email.toLowerCase() !== ALLOWED_SIGNUP_EMAIL) {
+    return {
+      error: `Only ${ALLOWED_SIGNUP_EMAIL} can create an account.`,
       success: "",
     };
   }
