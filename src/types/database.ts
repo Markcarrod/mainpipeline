@@ -49,17 +49,31 @@ export interface Database {
         Row: {
           id: string;
           client_id: string;
-          campaign_id: string;
+          /** Optional: links to a Pipeline Portal campaign */
+          campaign_id: string | null;
+          /** Cal.com unique booking identifier — used for upsert */
+          booking_uid: string | null;
           prospect_name: string;
+          /** Prospect email from Cal.com attendee */
+          prospect_email: string | null;
+          /** Legacy email column kept for backwards compatibility */
           email: string;
           company: string;
           job_title: string;
+          /** Cal.com event type name e.g. "Discovery Call" */
+          event_name: string | null;
+          /** Meeting start time (UTC) */
+          meeting_start: string | null;
+          /** Meeting end time (UTC) */
+          meeting_end: string | null;
+          /** Legacy single timestamp — kept for backwards compatibility */
           meeting_datetime: string;
           status: "scheduled" | "completed" | "no_show" | "rescheduled" | "cancelled";
           source: string;
-          account_id: string;
+          account_id: string | null;
           notes: string | null;
           created_at: string;
+          updated_at: string;
         };
       };
       accounts: {

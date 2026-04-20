@@ -36,7 +36,8 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
     if (!supabase) return { error: "Supabase client unconfigured" };
 
     const username = data.event_type?.users?.[0]?.username || "org";
-    const { error: insertError } = await supabase.from("client_integrations").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await (supabase as any).from("client_integrations").insert({
       client_id: clientId,
       provider: "Cal.com",
       label: title,
