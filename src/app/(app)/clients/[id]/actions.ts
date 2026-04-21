@@ -13,6 +13,7 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
   const slug = formData.get("slug") as string;
   const rawDuration = formData.get("duration") as string;
   const duration = parseInt(rawDuration, 10);
+  const webhookUrl = getClientWebhookUrl(clientId);
 
   const admin = createSupabaseAdminClient();
   let clientCalApiKey = "";
@@ -34,32 +35,68 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
     return { error: "No Cal.com API key found for this client. Add it in client setup." };
   }
 
+  if (!title?.trim() || !slug?.trim() || Number.isNaN(duration) || duration <= 0) {
+    return { error: "Please provide a valid title, slug, and duration." };
+  }
+
   try {
-    const res = await fetch("https://api.cal.com/v1/event-types?apiKey=" + encodeURIComponent(calApiKey), {
+    const res = await fetch("https://api.cal.com/v2/event-types", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${calApiKey}`,
+        "cal-api-version": "2024-06-14",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
+        lengthInMinutes: duration,
         title,
         slug,
-        length: duration,
         hidden: false,
         metadata: {
           clientId,
-          webhookUrl: getClientWebhookUrl(clientId),
+          webhookUrl,
         },
       }),
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    } catch {
+      data = {};
+    }
 
     if (!res.ok) {
-      return { error: data.message || "Failed to create Cal.com event type." };
+      const message =
+        typeof data.message === "string"
+          ? data.message
+          : typeof data.error === "string"
+            ? data.error
+            : raw || "Failed to create Cal.com event type.";
+      return { error: message };
     }
 
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { error: "Supabase client unconfigured" };
 
-    const username = data.event_type?.users?.[0]?.username || "org";
+    const eventType = (data.data ?? data.event_type ?? {}) as Record<string, unknown>;
+    const users = eventType.users;
+    let username = "org";
+
+    if (Array.isArray(users) && users.length > 0) {
+      const first = users[0] as unknown;
+      if (typeof first === "string") {
+        username = first;
+      } else if (first && typeof first === "object" && "username" in (first as Record<string, unknown>)) {
+        const parsedUsername = (first as Record<string, unknown>).username;
+        if (typeof parsedUsername === "string" && parsedUsername.trim()) {
+          username = parsedUsername;
+        }
+      }
+    }
+
+    const publicLink = `https://cal.com/${username}/${slug}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: insertError } = await (supabase as any).from("client_integrations").insert({
       client_id: clientId,
@@ -67,7 +104,7 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
       label: title,
       api_key_hint: "cal_****" + calApiKey.slice(-4),
       status: "connected",
-      notes: `Link: https://cal.com/${username}/${slug} | Webhook: ${getClientWebhookUrl(clientId)}`,
+      notes: `Link: ${publicLink} | Webhook: ${webhookUrl}`,
     });
 
     if (insertError) {
