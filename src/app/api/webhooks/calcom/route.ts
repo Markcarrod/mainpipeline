@@ -156,7 +156,7 @@ export async function POST(request: Request) {
 export async function GET() {
   return NextResponse.json({
     status: "ok",
-    endpoint: "/api/webhooks/cal",
+    endpoint: "/api/webhooks/calcom",
     supportedEvents: [
       "BOOKING_CREATED",
       "BOOKING_CANCELLED",

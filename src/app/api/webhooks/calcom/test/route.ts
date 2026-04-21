@@ -23,7 +23,7 @@ export async function GET() {
   return NextResponse.json({
     status: "ok",
     message: "Pipeline Portal Cal.com webhook endpoint is live.",
-    webhookUrl: "https://app.pipelineportal.com/api/webhooks/cal",
+    webhookUrl: "https://app.pipelineportal.com/api/webhooks/calcom",
     configured,
     timestamp: new Date().toISOString(),
   });

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +56,9 @@ export function SettingsPanels() {
             Booking flow: inbound webhook event {"->"} lookup client and campaign {"->"} create meeting record {"->"} surface in meetings dashboard.
           </p>
           <div className="flex gap-3">
-            <Button variant="outline">View webhook docs</Button>
+            <Button variant="outline" asChild>
+              <Link href="/settings/webhooks">Manage webhooks</Link>
+            </Button>
             <Button variant="secondary">Test booking event</Button>
           </div>
         </CardContent>
