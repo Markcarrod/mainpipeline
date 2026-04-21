@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import type { Client, ClientIntegration } from "@/types/portal";
 
-const STORAGE_DIRECTORY = join(process.cwd(), ".local");
+const STORAGE_DIRECTORY = process.env.VERCEL ? "/tmp/buyer-radar" : join(process.cwd(), ".local");
 const STORAGE_FILE = join(STORAGE_DIRECTORY, "portal-data.json");
 
 interface LocalPortalStore {

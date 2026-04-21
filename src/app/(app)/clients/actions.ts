@@ -103,9 +103,24 @@ export async function createClientAction(
       : undefined;
 
   if (!isSupabaseConfigured) {
-    await upsertLocalClient(client, integration);
-    revalidatePath("/clients");
-    revalidatePath(`/clients/${client.id}`);
+    if (process.env.NODE_ENV === "production") {
+      return {
+        error:
+          "Supabase is not configured in production. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel environment variables.",
+        success: "",
+      };
+    }
+
+    try {
+      await upsertLocalClient(client, integration);
+      revalidatePath("/clients");
+      revalidatePath(`/clients/${client.id}`);
+    } catch {
+      return {
+        error: "Local storage fallback failed. Configure Supabase to persist clients.",
+        success: "",
+      };
+    }
 
     return {
       error: "",
