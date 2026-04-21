@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   type CalWebhookPayload,
+  getTriggerEvent,
   isValidCalPayload,
   parseCalPayload,
 } from "@/lib/cal-webhook";
@@ -72,7 +73,10 @@ export async function POST(request: Request) {
   }
 
   const payload = body as CalWebhookPayload;
-  const eventType = payload.triggerEvent!;
+  const eventType = getTriggerEvent(payload);
+  if (!eventType) {
+    return NextResponse.json({ error: "Payload missing trigger event type." }, { status: 400 });
+  }
   const meeting = parseCalPayload(payload, eventType);
 
   if (!meeting) {
@@ -85,15 +89,9 @@ export async function POST(request: Request) {
   const resolvedClientId = meeting.clientId ?? requestClientId ?? null;
   const clientSecret = resolvedClientId ? await getClientWebhookSigningSecret(resolvedClientId) : null;
   const signatureHeader = request.headers.get("x-cal-signature-256");
+  const shouldVerifySignature = Boolean(signatureHeader && clientSecret);
 
-  if (resolvedClientId && !clientSecret) {
-    return NextResponse.json(
-      { error: "Webhook signing secret is not configured for this client." },
-      { status: 401 },
-    );
-  }
-
-  if (!verifyCalSignature(rawBody, signatureHeader, clientSecret)) {
+  if (shouldVerifySignature && !verifyCalSignature(rawBody, signatureHeader, clientSecret)) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
   }
 

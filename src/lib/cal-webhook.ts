@@ -6,8 +6,6 @@
  * stays thin and easy to test.
  */
 
-// ─── Supported Cal.com trigger event types ─────────────────────────────────
-
 export const CAL_EVENT_TYPES = [
   "BOOKING_CREATED",
   "BOOKING_CANCELLED",
@@ -19,15 +17,12 @@ export const CAL_EVENT_TYPES = [
 
 export type CalEventType = (typeof CAL_EVENT_TYPES)[number];
 
-// Meeting status values stored in the database
 export type MeetingStatus =
   | "scheduled"
   | "completed"
   | "cancelled"
   | "rescheduled"
   | "no_show";
-
-// ─── Event → status mapping ─────────────────────────────────────────────────
 
 const EVENT_STATUS_MAP: Record<CalEventType, MeetingStatus> = {
   BOOKING_CREATED: "scheduled",
@@ -38,51 +33,62 @@ const EVENT_STATUS_MAP: Record<CalEventType, MeetingStatus> = {
   MEETING_ENDED: "completed",
 };
 
-/**
- * Returns the MeetingStatus for a given Cal.com trigger event string.
- * Returns null if the event type is unrecognised.
- */
 export function mapEventToStatus(event: string): MeetingStatus | null {
   if (!CAL_EVENT_TYPES.includes(event as CalEventType)) return null;
   return EVENT_STATUS_MAP[event as CalEventType];
 }
 
-// ─── Raw Cal.com webhook payload types ─────────────────────────────────────
-
-/** Shape of the raw JSON body sent by Cal.com webhooks. */
 export interface CalWebhookPayload {
-  /** e.g. "BOOKING_CREATED" */
   triggerEvent?: string;
+  event?: string;
+  type?: string;
   createdAt?: string;
+  uid?: string;
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  metadata?: Record<string, string>;
+  attendees?: Array<{
+    name?: string;
+    email?: string;
+    timeZone?: string;
+  }>;
+  bookingFieldsResponses?: {
+    clientId?: string;
+    company?: { value?: string } | string;
+    jobTitle?: { value?: string } | string;
+    notes?: string;
+    [key: string]: unknown;
+  };
   payload?: {
     uid?: string;
+    bookingUid?: string;
     title?: string;
     startTime?: string;
     endTime?: string;
     status?: string;
-    /** Primary attendee (the prospect) */
     attendee?: {
       name?: string;
       email?: string;
       timeZone?: string;
     };
-    /** Flat responses from Cal.com booking form fields */
+    attendees?: Array<{
+      name?: string;
+      email?: string;
+      timeZone?: string;
+    }>;
     bookingFieldsResponses?: {
-      /** Pipeline Portal client UUID — injected via metadata */
       clientId?: string;
       company?: { value?: string } | string;
       jobTitle?: { value?: string } | string;
       notes?: string;
       [key: string]: unknown;
     };
-    /** Free-form metadata object that can also carry clientId */
     metadata?: Record<string, string>;
   };
 }
 
-// ─── Normalised meeting record ───────────────────────────────────────────────
-
-/** Clean, validated data ready to upsert into the meetings table. */
 export interface ParsedMeetingData {
   bookingUid: string;
   clientId: string | null;
@@ -91,19 +97,12 @@ export interface ParsedMeetingData {
   company: string;
   jobTitle: string;
   eventName: string;
-  meetingStart: string; // ISO-8601 UTC
-  meetingEnd: string; // ISO-8601 UTC
+  meetingStart: string;
+  meetingEnd: string;
   status: MeetingStatus;
   source: string;
 }
 
-/**
- * Extracts all fields we care about from a raw Cal.com payload.
- *
- * Handles two common Cal.com field shapes:
- *  - Simple string: `{ company: "Acme" }`
- *  - Object with value: `{ company: { value: "Acme" } }`
- */
 export function parseCalPayload(
   body: CalWebhookPayload,
   eventType: string,
@@ -111,20 +110,20 @@ export function parseCalPayload(
   const status = mapEventToStatus(eventType);
   if (!status) return null;
 
-  const p = body.payload;
-  if (!p) return null;
+  // BOOKING_* usually nested in `payload`, MEETING_* may be flat.
+  const p = (body.payload ?? body) as NonNullable<CalWebhookPayload["payload"]> & {
+    attendees?: Array<{ name?: string; email?: string }>;
+  };
 
-  // booking_uid is mandatory — without it we cannot upsert
-  const bookingUid = p.uid ?? null;
+  const bookingUid = p.uid ?? p.bookingUid ?? null;
   if (!bookingUid) return null;
 
-  // Prefer clientId from booking form fields, fall back to metadata
   const clientId =
     (p.bookingFieldsResponses?.clientId as string | undefined) ??
     p.metadata?.clientId ??
+    body.metadata?.clientId ??
     null;
 
-  // Helper to unwrap single-value or string field shapes
   function unwrapField(
     val: { value?: string } | string | undefined,
     fallback: string,
@@ -134,8 +133,11 @@ export function parseCalPayload(
     return val.value || fallback;
   }
 
-  const prospectName = p.attendee?.name ?? "Unknown";
-  const prospectEmail = p.attendee?.email ?? "unknown@example.com";
+  const firstAttendee = Array.isArray(p.attendees) ? p.attendees[0] : undefined;
+  const attendee = p.attendee ?? firstAttendee;
+
+  const prospectName = attendee?.name ?? "Unknown";
+  const prospectEmail = attendee?.email ?? "unknown@example.com";
   const company = unwrapField(
     p.bookingFieldsResponses?.company as { value?: string } | string | undefined,
     "Unknown company",
@@ -163,12 +165,18 @@ export function parseCalPayload(
   };
 }
 
-/**
- * Validates that the raw body is a non-null object with at least a
- * `triggerEvent` field string. Returns false for obviously malformed payloads.
- */
 export function isValidCalPayload(body: unknown): body is CalWebhookPayload {
   if (!body || typeof body !== "object") return false;
   const b = body as Record<string, unknown>;
-  return typeof b.triggerEvent === "string" && b.triggerEvent.length > 0;
+  return (
+    (typeof b.triggerEvent === "string" && b.triggerEvent.length > 0) ||
+    (typeof b.event === "string" && b.event.length > 0) ||
+    (typeof b.type === "string" && b.type.length > 0)
+  );
+}
+
+export function getTriggerEvent(body: CalWebhookPayload): string | null {
+  const event = body.triggerEvent ?? body.event ?? body.type ?? null;
+  if (!event || typeof event !== "string") return null;
+  return event;
 }
