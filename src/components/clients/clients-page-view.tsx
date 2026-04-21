@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { getMeetingsBookedThisMonth } from "@/lib/portal-helpers";
 import { formatCurrency } from "@/lib/utils";
-import type { Client, ClientIntegration, PortalDataset } from "@/types/portal";
+import type { Client, PortalDataset } from "@/types/portal";
 
 const initialState: CreateClientState = { error: "", success: "" };
 
@@ -38,13 +38,10 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
     setPortalDataset((current) => ({
       ...current,
       clients: [state.client as Client, ...current.clients],
-      clientIntegrations: state.integration
-        ? [state.integration as ClientIntegration, ...current.clientIntegrations]
-        : current.clientIntegrations,
     }));
     setOpen(false);
     formRef.current?.reset();
-  }, [state.client, state.integration]);
+  }, [state.client]);
 
   const clientCards = useMemo(
     () =>
@@ -128,7 +125,7 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
           <DialogHeader>
             <DialogTitle>Add new client</DialogTitle>
             <DialogDescription>
-              Capture client basics, target profile, and any API or integration context you want available on the account.
+              Capture the client basics and target profile. Scheduling credentials can be added from the client page.
             </DialogDescription>
           </DialogHeader>
           <form action={formAction} ref={formRef} className="space-y-5 px-6 py-5">
@@ -160,33 +157,6 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
               <Input name="targetJobTitles" placeholder="Founder, VP Sales, Head of Growth" required />
             </div>
 
-            <div className="rounded-3xl border bg-slate-50/80 p-4">
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-900">Client integrations</p>
-                <p className="text-sm leading-6 text-slate-500">
-                  Add a provider, API key hint, or connection note so the account feels complete and operational.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Provider" name="integrationProvider" placeholder="Cal.com, HubSpot, Slack" optional />
-                <Field label="Label" name="integrationLabel" placeholder="Scheduling access" optional />
-                <Field label="API key or token" name="integrationApiKey" placeholder="Paste token" optional />
-                <Field
-                  label="Cal booking link"
-                  name="calBookingLink"
-                  placeholder="https://cal.com/your-team/discovery"
-                  optional
-                />
-                <Field
-                  label="Cal webhook secret"
-                  name="calWebhookSigningSecret"
-                  placeholder="Paste Cal webhook signing secret"
-                  optional
-                />
-                <Field label="Integration note" name="integrationNotes" placeholder="Used for meeting syncs" optional />
-              </div>
-            </div>
-
             {state.error ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {state.error}
@@ -195,11 +165,6 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
             {state.success ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 {state.success}
-                {state.webhookUrl ? (
-                  <p className="mt-1 break-all">
-                    Client webhook URL: <span className="font-medium">{state.webhookUrl}</span>
-                  </p>
-                ) : null}
               </div>
             ) : null}
 

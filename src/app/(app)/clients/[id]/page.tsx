@@ -229,7 +229,7 @@ export default async function ClientDetailPage({
                   ))
                 ) : (
                   <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500">
-                    No client integrations added yet. Use the New client flow to capture provider names, API keys, and onboarding notes.
+                    No client integrations added yet. Use the Cal.com or Calendly controls above to add scheduling credentials for this client.
                   </div>
                 )}
               </CardContent>
