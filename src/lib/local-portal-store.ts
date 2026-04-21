@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
-import type { Client, ClientIntegration } from "@/types/portal";
+import type { Client, ClientIntegration, ClientStatus } from "@/types/portal";
 
 const STORAGE_DIRECTORY = process.env.VERCEL ? "/tmp/buyer-radar" : join(process.cwd(), ".local");
 const STORAGE_FILE = join(STORAGE_DIRECTORY, "portal-data.json");
@@ -65,6 +65,32 @@ export async function deleteLocalClient(clientId: string) {
       {
         clients,
         clientIntegrations,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
+export async function updateLocalClientStatus(clientId: string, status: ClientStatus) {
+  const current = await readLocalPortalStore();
+  const clients = current.clients.map((item) =>
+    item.id === clientId
+      ? {
+          ...item,
+          status,
+        }
+      : item,
+  );
+
+  await mkdir(STORAGE_DIRECTORY, { recursive: true });
+  await writeFile(
+    STORAGE_FILE,
+    JSON.stringify(
+      {
+        clients,
+        clientIntegrations: current.clientIntegrations,
       },
       null,
       2,

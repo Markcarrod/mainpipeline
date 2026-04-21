@@ -7,9 +7,48 @@ import { requireSession } from "@/lib/auth";
 import { getCalendlyUserContext, syncClientCalendlyBookings } from "@/lib/calendly-sync";
 import { syncClientCalBookings } from "@/lib/cal-sync";
 import { isSupabaseConfigured } from "@/lib/env";
-import { deleteLocalClient } from "@/lib/local-portal-store";
+import { deleteLocalClient, updateLocalClientStatus } from "@/lib/local-portal-store";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ClientStatus } from "@/types/portal";
+
+const clientStatuses = ["active", "paused", "onboarding"] satisfies ClientStatus[];
+
+export async function updateClientStatusAction(clientId: string, status: ClientStatus) {
+  await requireSession();
+
+  if (!clientId) {
+    return { error: "Client id is required." };
+  }
+
+  if (!clientStatuses.includes(status)) {
+    return { error: "Choose a valid client status." };
+  }
+
+  if (!isSupabaseConfigured) {
+    await updateLocalClientStatus(clientId, status);
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${clientId}`);
+    return { success: true };
+  }
+
+  const admin = createSupabaseAdminClient();
+
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).from("clients").update({ status }).eq("id", clientId);
+
+  if (error) {
+    return { error: error.message || "Failed to update client status." };
+  }
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return { success: true };
+}
 
 export async function createCalcomLinkAction(clientId: string, formData: FormData) {
   const title = formData.get("title") as string;

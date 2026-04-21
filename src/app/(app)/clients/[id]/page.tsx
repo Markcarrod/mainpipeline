@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Download, FileText } from "lucide-react";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ClientProgressCard } from "@/components/shared/client-progress-card";
+import { ClientStatusSelect } from "@/components/clients/client-status-select";
 import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog";
 import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
 import { SaveCalApiKeyDialog } from "@/components/clients/save-cal-api-key-dialog";
@@ -112,7 +113,10 @@ export default async function ClientDetailPage({
                     <CardTitle>Overview</CardTitle>
                     <CardDescription>Client summary for internal review and discovery-call presentation.</CardDescription>
                   </div>
-                  <StatusBadge status={client.status} />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <StatusBadge status={client.status} />
+                    <ClientStatusSelect clientId={client.id} status={client.status} />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
