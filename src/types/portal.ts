@@ -48,7 +48,7 @@ export interface Meeting {
   jobTitle: string;
   meetingDatetime: string;
   status: MeetingStatus;
-  source: "Email" | "LinkedIn" | "Referral" | "Website";
+  source: "Email" | "LinkedIn" | "Referral" | "Website" | "Cal.com";
   accountId: string;
   notes: string;
   createdAt: string;

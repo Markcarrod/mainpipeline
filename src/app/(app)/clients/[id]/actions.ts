@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getClientWebhookUrl } from "@/lib/app-url";
 import { requireSession } from "@/lib/auth";
+import { syncClientCalBookings } from "@/lib/cal-sync";
 import { isSupabaseConfigured } from "@/lib/env";
 import { deleteLocalClient } from "@/lib/local-portal-store";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -237,6 +238,59 @@ export async function saveClientCalBookingLinkAction(clientId: string, formData:
   revalidatePath("/settings/webhooks");
 
   return { success: true, webhookUrl };
+}
+
+export async function syncClientCalBookingsAction(clientId: string) {
+  await requireSession();
+
+  if (!isSupabaseConfigured) {
+    return { error: "Supabase is not configured. Connect Supabase before syncing Cal bookings." };
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: credential, error } = await (admin as any)
+    .from("client_cal_credentials")
+    .select("client_id, cal_api_key")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (!credential?.cal_api_key) {
+    return { error: "Add this client's Cal API key before syncing bookings." };
+  }
+
+  try {
+    const result = await syncClientCalBookings(admin, credential);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("sync_logs").insert({
+      sync_type: "cal_bookings_manual",
+      status: "success",
+      message: "Manual Cal booking sync completed.",
+      metadata: result,
+    });
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath("/meetings");
+    revalidatePath("/dashboard");
+    return { success: true, ...result };
+  } catch (syncError) {
+    const message = syncError instanceof Error ? syncError.message : "Unknown Cal sync error.";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("sync_logs").insert({
+      sync_type: "cal_bookings_manual",
+      status: "failure",
+      message,
+      metadata: { clientId },
+    });
+    return { error: message };
+  }
 }
 
 export async function deleteClientAction(clientId: string) {

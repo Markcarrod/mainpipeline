@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
+import { env } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   type CalWebhookPayload,
@@ -87,9 +88,9 @@ export async function POST(request: Request) {
   }
 
   const resolvedClientId = meeting.clientId ?? requestClientId ?? null;
-  const clientSecret = resolvedClientId ? await getClientWebhookSigningSecret(resolvedClientId) : null;
+  const clientSecret = (resolvedClientId ? await getClientWebhookSigningSecret(resolvedClientId) : null) ?? env.calcomSigningSecret ?? null;
   const signatureHeader = request.headers.get("x-cal-signature-256");
-  const shouldVerifySignature = Boolean(signatureHeader && clientSecret);
+  const shouldVerifySignature = Boolean(clientSecret);
 
   if (shouldVerifySignature && !verifyCalSignature(rawBody, signatureHeader, clientSecret)) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
@@ -117,6 +118,15 @@ export async function POST(request: Request) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: webhookEvent } = await (supabase as any).from("webhook_events").insert({
+    trigger_event: eventType,
+    booking_uid: meeting.bookingUid,
+    client_id: resolvedClientId,
+    payload,
+    headers: Object.fromEntries(request.headers.entries()),
+  }).select("id").maybeSingle();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const meetingsTable = (supabase as any).from("meetings");
 
   const meetingRecord = {
@@ -133,6 +143,8 @@ export async function POST(request: Request) {
     meeting_datetime: meeting.meetingStart,
     status: meeting.status,
     source: meeting.source,
+    raw_latest_payload: payload,
+    last_event_at: payload.createdAt ?? new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
@@ -142,10 +154,25 @@ export async function POST(request: Request) {
   });
 
   if (upsertError) {
+    if (webhookEvent?.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("webhook_events").update({
+        processed_successfully: false,
+        processing_error: upsertError.message,
+      }).eq("id", webhookEvent.id);
+    }
+
     return NextResponse.json(
       { error: "Database write failed. Please check server logs." },
       { status: 500 },
     );
+  }
+
+  if (webhookEvent?.id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("webhook_events").update({
+      processed_successfully: true,
+    }).eq("id", webhookEvent.id);
   }
 
   return NextResponse.json({ success: true });

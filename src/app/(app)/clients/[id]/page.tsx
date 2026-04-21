@@ -7,6 +7,7 @@ import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog
 import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
 import { SaveCalApiKeyDialog } from "@/components/clients/save-cal-api-key-dialog";
 import { SaveCalBookingLinkDialog } from "@/components/clients/save-cal-booking-link-dialog";
+import { SyncCalBookingsButton } from "@/components/clients/sync-cal-bookings-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,7 @@ export default async function ClientDetailPage({
                     clientName={client.name}
                     hasBookingLink={hasBookingLink}
                   />
+                  <SyncCalBookingsButton clientId={client.id} disabled={!hasCalApiKey} />
                   <CreateCalLinkDialog clientId={client.id} clientName={client.name} hasCalApiKey={hasCalApiKey} />
                 </div>
               </CardHeader>

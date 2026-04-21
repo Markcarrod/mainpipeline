@@ -73,6 +73,12 @@ export interface Database {
           job_title: string;
           /** Cal.com event type name e.g. "Discovery Call" */
           event_name: string | null;
+          cal_booking_id: string | null;
+          event_type_id: string | null;
+          host_name: string | null;
+          host_email: string | null;
+          raw_latest_payload: Json | null;
+          last_event_at: string | null;
           /** Meeting start time (UTC) */
           meeting_start: string | null;
           /** Meeting end time (UTC) */
@@ -85,6 +91,30 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
+        };
+      };
+      webhook_events: {
+        Row: {
+          id: string;
+          trigger_event: string;
+          booking_uid: string | null;
+          cal_booking_id: string | null;
+          client_id: string | null;
+          payload: Json;
+          headers: Json | null;
+          received_at: string;
+          processed_successfully: boolean;
+          processing_error: string | null;
+        };
+      };
+      sync_logs: {
+        Row: {
+          id: string;
+          sync_type: string;
+          status: string;
+          message: string | null;
+          metadata: Json | null;
+          created_at: string;
         };
       };
       accounts: {

@@ -4,6 +4,7 @@ export const env = {
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   calcomSigningSecret: process.env.CALCOM_WEBHOOK_SIGNING_SECRET,
+  cronSecret: process.env.CRON_SECRET,
 };
 
 export const isSupabaseConfigured = Boolean(env.supabaseUrl && env.supabaseAnonKey);
