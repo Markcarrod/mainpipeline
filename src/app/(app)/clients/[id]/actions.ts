@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getClientWebhookUrl } from "@/lib/app-url";
 import { requireSession } from "@/lib/auth";
@@ -174,6 +175,68 @@ export async function saveClientCalApiKeyAction(clientId: string, formData: Form
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/settings/webhooks");
   return { success: true };
+}
+
+export async function saveClientCalBookingLinkAction(clientId: string, formData: FormData) {
+  await requireSession();
+
+  if (!isSupabaseConfigured) {
+    return { error: "Supabase is not configured. Connect Supabase to store booking links." };
+  }
+
+  const bookingLink = String(formData.get("bookingLink") ?? "").trim();
+
+  if (!bookingLink) {
+    return { error: "Cal booking link is required." };
+  }
+
+  try {
+    new URL(bookingLink);
+  } catch {
+    return { error: "Please enter a valid URL." };
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing, error: existingError } = await (admin as any)
+    .from("client_cal_credentials")
+    .select("cal_api_key, webhook_url, webhook_signing_secret")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { error: existingError.message };
+  }
+
+  const calApiKey = String(existing?.cal_api_key ?? "");
+  const webhookUrl = String(existing?.webhook_url ?? getClientWebhookUrl(clientId));
+  const webhookSigningSecret =
+    String(existing?.webhook_signing_secret ?? "").trim() || randomBytes(24).toString("hex");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).from("client_cal_credentials").upsert(
+    {
+      client_id: clientId,
+      cal_api_key: calApiKey,
+      booking_link: bookingLink,
+      webhook_url: webhookUrl,
+      webhook_signing_secret: webhookSigningSecret,
+    },
+    { onConflict: "client_id" },
+  );
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/settings/webhooks");
+
+  return { success: true, webhookUrl };
 }
 
 export async function deleteClientAction(clientId: string) {

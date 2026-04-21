@@ -6,6 +6,7 @@ import { ClientProgressCard } from "@/components/shared/client-progress-card";
 import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog";
 import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
 import { SaveCalApiKeyDialog } from "@/components/clients/save-cal-api-key-dialog";
+import { SaveCalBookingLinkDialog } from "@/components/clients/save-cal-booking-link-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -44,16 +45,22 @@ export default async function ClientDetailPage({
   const integrations = getClientIntegrations(dataset, client.id);
   const admin = createSupabaseAdminClient();
   let hasCalApiKey = false;
+  let hasBookingLink = false;
+  let webhookUrl = "";
+  let bookingLink = "";
 
   if (admin) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (admin as any)
       .from("client_cal_credentials")
-      .select("cal_api_key")
+      .select("cal_api_key, booking_link, webhook_url")
       .eq("client_id", client.id)
       .maybeSingle();
 
     hasCalApiKey = Boolean(String(data?.cal_api_key ?? "").trim());
+    hasBookingLink = Boolean(String(data?.booking_link ?? "").trim());
+    webhookUrl = String(data?.webhook_url ?? "");
+    bookingLink = String(data?.booking_link ?? "");
   }
 
   return (
@@ -129,13 +136,32 @@ export default async function ClientDetailPage({
                   <p className="text-xs text-slate-500">
                     Cal API key: <span className="font-medium text-slate-900">{hasCalApiKey ? "Configured" : "Missing"}</span>
                   </p>
+                  <p className="text-xs text-slate-500">
+                    Booking link: <span className="font-medium text-slate-900">{hasBookingLink ? "Configured" : "Missing"}</span>
+                  </p>
                 </div>
                 <div className="shrink-0 space-y-2 pt-1">
                   <SaveCalApiKeyDialog clientId={client.id} clientName={client.name} hasCalApiKey={hasCalApiKey} />
+                  <SaveCalBookingLinkDialog
+                    clientId={client.id}
+                    clientName={client.name}
+                    hasBookingLink={hasBookingLink}
+                  />
                   <CreateCalLinkDialog clientId={client.id} clientName={client.name} hasCalApiKey={hasCalApiKey} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Info label="Saved booking link" value={bookingLink || "No booking link saved yet"} />
+                    <Info label="Webhook URL" value={webhookUrl || "No webhook URL generated yet"} />
+                  </div>
+                  <div className="mt-3">
+                    <Link href="/settings/webhooks" className="text-sm font-medium text-blue-700 hover:underline">
+                      Open webhook manager
+                    </Link>
+                  </div>
+                </div>
                 {integrations.length ? (
                   integrations.map((integration) => (
                     <div key={integration.id} className="rounded-2xl bg-slate-50 px-4 py-4">
