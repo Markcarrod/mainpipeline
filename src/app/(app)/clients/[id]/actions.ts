@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { getClientWebhookUrl } from "@/lib/app-url";
+import { requireSession } from "@/lib/auth";
+import { isSupabaseConfigured } from "@/lib/env";
+import { deleteLocalClient } from "@/lib/local-portal-store";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -76,4 +79,36 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
   } catch (error: any) {
     return { error: error.message || "Unknown error occurred." };
   }
+}
+
+export async function deleteClientAction(clientId: string) {
+  await requireSession();
+
+  if (!clientId) {
+    return { error: "Client id is required." };
+  }
+
+  if (!isSupabaseConfigured) {
+    await deleteLocalClient(clientId);
+    revalidatePath("/clients");
+    revalidatePath("/settings/webhooks");
+    return { success: true };
+  }
+
+  const admin = createSupabaseAdminClient();
+
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).from("clients").delete().eq("id", clientId);
+
+  if (error) {
+    return { error: error.message || "Failed to delete client." };
+  }
+
+  revalidatePath("/clients");
+  revalidatePath("/settings/webhooks");
+  return { success: true };
 }

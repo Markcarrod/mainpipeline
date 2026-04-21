@@ -52,3 +52,23 @@ export async function upsertLocalClient(client: Client, integration?: ClientInte
     "utf8",
   );
 }
+
+export async function deleteLocalClient(clientId: string) {
+  const current = await readLocalPortalStore();
+  const clients = current.clients.filter((item) => item.id !== clientId);
+  const clientIntegrations = current.clientIntegrations.filter((item) => item.clientId !== clientId);
+
+  await mkdir(STORAGE_DIRECTORY, { recursive: true });
+  await writeFile(
+    STORAGE_FILE,
+    JSON.stringify(
+      {
+        clients,
+        clientIntegrations,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}

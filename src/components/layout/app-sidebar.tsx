@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BriefcaseBusiness, CalendarRange, LayoutDashboard, Settings } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CalendarRange, LayoutDashboard, Settings, Webhook } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const navigation = [
   { href: "/meetings", label: "Meetings", icon: CalendarRange },
   { href: "/clients", label: "Clients", icon: BriefcaseBusiness },
   { href: "/campaigns", label: "Campaigns", icon: BarChart3 },
+  { href: "/settings/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -32,7 +33,9 @@ export function AppSidebar() {
       <nav className="mt-10 space-y-1">
         {navigation.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive =
+            (pathname === item.href || pathname.startsWith(`${item.href}/`)) &&
+            !(item.href === "/settings" && pathname.startsWith("/settings/webhooks"));
 
           return (
             <Link

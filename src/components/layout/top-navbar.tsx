@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { Bell, Menu, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/login/actions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +30,7 @@ const titles: Record<string, string> = {
   "/meetings": "Meetings",
   "/clients": "Clients",
   "/campaigns": "Campaigns",
+  "/settings/webhooks": "Webhooks",
   "/settings": "Settings",
 };
 
@@ -31,6 +42,7 @@ export function TopNavbar({
   role: string;
 }) {
   const pathname = usePathname();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const title =
     Object.entries(titles).find(([key]) => pathname.startsWith(key))?.[1] ?? "Pipeline Portal";
 
@@ -66,14 +78,30 @@ export function TopNavbar({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Signed in</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <form action={logoutAction} className="w-full">
-                <button className="w-full text-left">Log out</button>
-              </form>
+            <DropdownMenuItem onSelect={() => setLogoutOpen(true)}>
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Do you want to log out?</DialogTitle>
+            <DialogDescription>
+              You will be signed out of this workspace and redirected to the login page.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setLogoutOpen(false)}>
+              Cancel
+            </Button>
+            <form action={logoutAction}>
+              <Button type="submit">Yes, log out</Button>
+            </form>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

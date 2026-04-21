@@ -4,6 +4,7 @@ import { Download, FileText } from "lucide-react";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ClientProgressCard } from "@/components/shared/client-progress-card";
 import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog";
+import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ export default async function ClientDetailPage({
                 <FileText className="h-4 w-4" />
                 Share update
               </Button>
+              <DeleteClientDialog clientId={client.id} clientName={client.name} />
             </div>
           }
         />
