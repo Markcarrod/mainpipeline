@@ -7,7 +7,7 @@ import { DEMO_AUTH_COOKIE } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const ALLOWED_SIGNUP_EMAIL = "support@buyerrader.app";
+const ALLOWED_SIGNUP_EMAIL = "admin@buyerrader.app";
 
 export interface AuthActionState {
   error: string;
