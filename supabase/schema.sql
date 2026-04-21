@@ -44,6 +44,7 @@ create table if not exists public.client_cal_credentials (
   cal_api_key text not null,
   booking_link text not null,
   webhook_url text not null,
+  webhook_signing_secret text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

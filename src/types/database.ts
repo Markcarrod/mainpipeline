@@ -36,6 +36,7 @@ export interface Database {
           cal_api_key: string;
           booking_link: string;
           webhook_url: string;
+          webhook_signing_secret: string;
           created_at: string;
           updated_at: string;
         };

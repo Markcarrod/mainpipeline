@@ -32,6 +32,7 @@ const clientSchema = z.object({
   integrationLabel: z.string().optional(),
   integrationApiKey: z.string().optional(),
   calBookingLink: z.string().url("Use a valid booking link URL.").optional().or(z.literal("")),
+  calWebhookSigningSecret: z.string().optional(),
   integrationNotes: z.string().optional(),
 });
 
@@ -67,6 +68,7 @@ export async function createClientAction(
     integrationLabel: formData.get("integrationLabel"),
     integrationApiKey: formData.get("integrationApiKey"),
     calBookingLink: formData.get("calBookingLink"),
+    calWebhookSigningSecret: formData.get("calWebhookSigningSecret"),
     integrationNotes: formData.get("integrationNotes"),
   });
 
@@ -85,6 +87,7 @@ export async function createClientAction(
   );
   const bookingLink = values.calBookingLink?.trim() || "";
   const calApiKey = values.integrationApiKey?.trim() || "";
+  const calWebhookSigningSecret = values.calWebhookSigningSecret?.trim() || "";
 
   if (isCalIntegration && !calApiKey) {
     return {
@@ -96,6 +99,13 @@ export async function createClientAction(
   if (isCalIntegration && !bookingLink) {
     return {
       error: "Cal.com booking link is required for client setup.",
+      success: "",
+    };
+  }
+
+  if (isCalIntegration && !calWebhookSigningSecret) {
+    return {
+      error: "Cal.com webhook signing secret is required for secure client webhook verification.",
       success: "",
     };
   }
@@ -270,6 +280,7 @@ export async function createClientAction(
         cal_api_key: calApiKey,
         booking_link: bookingLink,
         webhook_url: webhookUrl,
+        webhook_signing_secret: calWebhookSigningSecret,
       },
       { onConflict: "client_id" },
     );

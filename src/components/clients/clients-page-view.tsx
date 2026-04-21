@@ -177,6 +177,12 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
                   placeholder="https://cal.com/your-team/discovery"
                   optional
                 />
+                <Field
+                  label="Cal webhook secret"
+                  name="calWebhookSigningSecret"
+                  placeholder="Paste Cal webhook signing secret"
+                  optional
+                />
                 <Field label="Integration note" name="integrationNotes" placeholder="Used for meeting syncs" optional />
               </div>
             </div>

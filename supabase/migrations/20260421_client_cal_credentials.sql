@@ -11,9 +11,13 @@ CREATE TABLE IF NOT EXISTS public.client_cal_credentials (
   cal_api_key text NOT NULL,
   booking_link text NOT NULL,
   webhook_url text NOT NULL,
+  webhook_signing_secret text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.client_cal_credentials
+  ADD COLUMN IF NOT EXISTS webhook_signing_secret text NOT NULL DEFAULT '';
 
 ALTER TABLE public.client_cal_credentials ENABLE ROW LEVEL SECURITY;
 
