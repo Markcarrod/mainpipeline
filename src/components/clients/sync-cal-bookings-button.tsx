@@ -9,15 +9,17 @@ import { Button } from "@/components/ui/button";
 export function SyncCalBookingsButton({
   clientId,
   disabled,
+  provider = "cal.com",
 }: {
   clientId: string;
   disabled: boolean;
+  provider?: "cal.com" | "calendly";
 }) {
   const [loading, setLoading] = useState(false);
 
   async function syncBookings() {
     setLoading(true);
-    const result = await syncClientCalBookingsAction(clientId);
+    const result = await syncClientCalBookingsAction(clientId, provider);
     setLoading(false);
 
     if (result?.error) {
@@ -26,7 +28,7 @@ export function SyncCalBookingsButton({
     }
 
     const upserted = "upserted" in result ? result.upserted : 0;
-    toast.success(`Synced ${upserted} Cal booking records.`);
+    toast.success(`Synced ${upserted} ${provider === "calendly" ? "Calendly" : "Cal.com"} booking records.`);
   }
 
   return (
@@ -39,7 +41,7 @@ export function SyncCalBookingsButton({
       onClick={syncBookings}
     >
       <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-      {loading ? "Syncing" : "Sync Cal"}
+      {loading ? "Syncing" : provider === "calendly" ? "Sync Calendly" : "Sync Cal"}
     </Button>
   );
 }

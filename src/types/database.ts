@@ -41,6 +41,19 @@ export interface Database {
           updated_at: string;
         };
       };
+      client_calendly_credentials: {
+        Row: {
+          client_id: string;
+          calendly_api_key: string;
+          booking_link: string;
+          webhook_url: string;
+          webhook_signing_secret: string;
+          user_uri: string | null;
+          organization_uri: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
       campaigns: {
         Row: {
           id: string;

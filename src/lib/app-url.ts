@@ -15,3 +15,7 @@ export function getAppBaseUrl() {
 export function getClientWebhookUrl(clientId: string) {
   return `${getAppBaseUrl()}/api/webhooks/calcom?clientId=${encodeURIComponent(clientId)}`;
 }
+
+export function getClientCalendlyWebhookUrl(clientId: string) {
+  return `${getAppBaseUrl()}/api/webhooks/calendly?clientId=${encodeURIComponent(clientId)}`;
+}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncClientCalendlyBookings } from "@/lib/calendly-sync";
 import { env } from "@/lib/env";
 import { syncClientCalBookings } from "@/lib/cal-sync";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -26,31 +27,60 @@ export async function POST(request: Request) {
   const clientId = url.searchParams.get("clientId");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let calQuery = (supabase as any)
     .from("client_cal_credentials")
     .select("client_id, cal_api_key")
     .neq("cal_api_key", "");
 
   if (clientId) {
-    query = query.eq("client_id", clientId);
+    calQuery = calQuery.eq("client_id", clientId);
   }
 
-  const { data: credentials, error: credentialsError } = await query;
+  const { data: calCredentials, error: credentialsError } = await calQuery;
 
   if (credentialsError) {
     return NextResponse.json({ error: credentialsError.message }, { status: 500 });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let calendlyQuery = (supabase as any)
+    .from("client_calendly_credentials")
+    .select("client_id, calendly_api_key, user_uri")
+    .neq("calendly_api_key", "");
+
+  if (clientId) {
+    calendlyQuery = calendlyQuery.eq("client_id", clientId);
+  }
+
+  const { data: calendlyCredentials, error: calendlyCredentialsError } = await calendlyQuery;
+
+  if (calendlyCredentialsError && calendlyCredentialsError.code !== "42P01") {
+    return NextResponse.json({ error: calendlyCredentialsError.message }, { status: 500 });
+  }
+
   const startedAt = new Date().toISOString();
   const results = [];
 
-  for (const credential of credentials ?? []) {
+  for (const credential of calCredentials ?? []) {
     try {
-      results.push(await syncClientCalBookings(supabase, credential));
+      results.push({ provider: "cal.com", ...(await syncClientCalBookings(supabase, credential)) });
     } catch (error) {
       results.push({
+        provider: "cal.com",
         clientId: String(credential.client_id),
         error: error instanceof Error ? error.message : "Unknown Cal sync error.",
+      });
+    }
+  }
+
+  for (const credential of calendlyCredentials ?? []) {
+    try {
+      results.push({ provider: "calendly", ...(await syncClientCalendlyBookings(supabase, credential)) });
+    } catch (error) {
+      results.push({
+        provider: "calendly",
+        clientId: String(credential.client_id),
+        error: error instanceof Error ? error.message : "Unknown Calendly sync error.",
       });
     }
   }

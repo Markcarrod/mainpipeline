@@ -49,6 +49,18 @@ create table if not exists public.client_cal_credentials (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.client_calendly_credentials (
+  client_id uuid primary key references public.clients(id) on delete cascade,
+  calendly_api_key text not null default '',
+  booking_link text not null default '',
+  webhook_url text not null default '',
+  webhook_signing_secret text not null default '',
+  user_uri text,
+  organization_uri text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.accounts (
   id text primary key,
   label text not null,
@@ -125,6 +137,7 @@ alter table public.clients enable row level security;
 alter table public.campaigns enable row level security;
 alter table public.client_integrations enable row level security;
 alter table public.client_cal_credentials enable row level security;
+alter table public.client_calendly_credentials enable row level security;
 alter table public.accounts enable row level security;
 alter table public.meetings enable row level security;
 alter table public.webhook_events enable row level security;
@@ -139,6 +152,9 @@ create policy "authenticated insert client integrations" on public.client_integr
 create policy "service role read client cal credentials" on public.client_cal_credentials for select to service_role using (true);
 create policy "service role insert client cal credentials" on public.client_cal_credentials for insert to service_role with check (true);
 create policy "service role update client cal credentials" on public.client_cal_credentials for update to service_role using (true) with check (true);
+create policy "service role read client calendly credentials" on public.client_calendly_credentials for select to service_role using (true);
+create policy "service role insert client calendly credentials" on public.client_calendly_credentials for insert to service_role with check (true);
+create policy "service role update client calendly credentials" on public.client_calendly_credentials for update to service_role using (true) with check (true);
 create policy "authenticated read meetings" on public.meetings for select to authenticated using (true);
 create policy "service role insert meetings" on public.meetings for insert to service_role with check (true);
 create policy "service role update meetings" on public.meetings for update to service_role using (true) with check (true);

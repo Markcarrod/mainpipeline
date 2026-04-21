@@ -2,8 +2,9 @@
 
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
-import { getClientWebhookUrl } from "@/lib/app-url";
+import { getClientCalendlyWebhookUrl, getClientWebhookUrl } from "@/lib/app-url";
 import { requireSession } from "@/lib/auth";
+import { getCalendlyUserContext, syncClientCalendlyBookings } from "@/lib/calendly-sync";
 import { syncClientCalBookings } from "@/lib/cal-sync";
 import { isSupabaseConfigured } from "@/lib/env";
 import { deleteLocalClient } from "@/lib/local-portal-store";
@@ -240,11 +241,29 @@ export async function saveClientCalBookingLinkAction(clientId: string, formData:
   return { success: true, webhookUrl };
 }
 
-export async function syncClientCalBookingsAction(clientId: string) {
+export async function saveClientCalendlyConnectionAction(clientId: string, formData: FormData) {
   await requireSession();
 
   if (!isSupabaseConfigured) {
-    return { error: "Supabase is not configured. Connect Supabase before syncing Cal bookings." };
+    return { error: "Supabase is not configured. Connect Supabase to store Calendly credentials." };
+  }
+
+  const apiKey = String(formData.get("calendlyApiKey") ?? "").trim();
+  const bookingLink = String(formData.get("bookingLink") ?? "").trim();
+  const webhookSigningSecret = String(formData.get("webhookSigningSecret") ?? "").trim();
+
+  if (!apiKey) {
+    return { error: "Calendly API token is required." };
+  }
+
+  if (!bookingLink) {
+    return { error: "Calendly booking link is required." };
+  }
+
+  try {
+    new URL(bookingLink);
+  } catch {
+    return { error: "Please enter a valid Calendly URL." };
   }
 
   const admin = createSupabaseAdminClient();
@@ -252,28 +271,79 @@ export async function syncClientCalBookingsAction(clientId: string) {
     return { error: "Supabase admin client is not configured." };
   }
 
+  let context = { userUri: "", organizationUri: "" };
+  try {
+    context = await getCalendlyUserContext(apiKey);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to verify the Calendly token.",
+    };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: credential, error } = await (admin as any)
-    .from("client_cal_credentials")
-    .select("client_id, cal_api_key")
-    .eq("client_id", clientId)
-    .maybeSingle();
+  const { error } = await (admin as any).from("client_calendly_credentials").upsert(
+    {
+      client_id: clientId,
+      calendly_api_key: apiKey,
+      booking_link: bookingLink,
+      webhook_url: getClientCalendlyWebhookUrl(clientId),
+      webhook_signing_secret: webhookSigningSecret,
+      user_uri: context.userUri,
+      organization_uri: context.organizationUri,
+    },
+    { onConflict: "client_id" },
+  );
 
   if (error) {
     return { error: error.message };
   }
 
-  if (!credential?.cal_api_key) {
-    return { error: "Add this client's Cal API key before syncing bookings." };
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/settings/webhooks");
+  return { success: true };
+}
+
+export async function syncClientCalBookingsAction(clientId: string, provider: "cal.com" | "calendly" = "cal.com") {
+  await requireSession();
+
+  if (!isSupabaseConfigured) {
+    return { error: "Supabase is not configured. Connect Supabase before syncing bookings." };
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  const table = provider === "calendly" ? "client_calendly_credentials" : "client_cal_credentials";
+  const select = provider === "calendly"
+    ? "client_id, calendly_api_key, user_uri"
+    : "client_id, cal_api_key";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: credential, error } = await (admin as any).from(table).select(select).eq("client_id", clientId).maybeSingle();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (provider === "cal.com" && !credential?.cal_api_key) {
+    return { error: "Add this client's Cal.com API key before syncing bookings." };
+  }
+
+  if (provider === "calendly" && !credential?.calendly_api_key) {
+    return { error: "Add this client's Calendly API token before syncing bookings." };
   }
 
   try {
-    const result = await syncClientCalBookings(admin, credential);
+    const result = provider === "calendly"
+      ? await syncClientCalendlyBookings(admin, credential)
+      : await syncClientCalBookings(admin, credential);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from("sync_logs").insert({
-      sync_type: "cal_bookings_manual",
+      sync_type: provider === "calendly" ? "calendly_bookings_manual" : "cal_bookings_manual",
       status: "success",
-      message: "Manual Cal booking sync completed.",
+      message: `Manual ${provider === "calendly" ? "Calendly" : "Cal.com"} booking sync completed.`,
       metadata: result,
     });
     revalidatePath(`/clients/${clientId}`);

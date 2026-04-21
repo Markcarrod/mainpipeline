@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getClientWebhookUrl } from "@/lib/app-url";
+import { getClientCalendlyWebhookUrl, getClientWebhookUrl } from "@/lib/app-url";
 import { isSupabaseConfigured } from "@/lib/env";
 import { upsertLocalClient } from "@/lib/local-portal-store";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -80,25 +80,28 @@ export async function createClientAction(
   }
 
   const values = parsed.data;
-  const isCalIntegration = Boolean(
-    values.integrationApiKey?.trim() ||
-      values.calBookingLink?.trim() ||
-      values.integrationProvider?.toLowerCase().includes("cal"),
-  );
+  const provider = values.integrationProvider?.toLowerCase() ?? "";
   const bookingLink = values.calBookingLink?.trim() || "";
+  const isCalendlyIntegration = provider.includes("calendly") || bookingLink.includes("calendly.com");
+  const isCalIntegration = !isCalendlyIntegration && Boolean(
+    values.integrationApiKey?.trim() ||
+      bookingLink ||
+      provider.includes("cal.com") ||
+      provider === "cal",
+  );
   const calApiKey = values.integrationApiKey?.trim() || "";
   const calWebhookSigningSecret = values.calWebhookSigningSecret?.trim() || "";
 
-  if (isCalIntegration && !calApiKey) {
+  if ((isCalIntegration || isCalendlyIntegration) && !calApiKey) {
     return {
-      error: "Cal.com API key is required for client-specific Cal tracking.",
+      error: `${isCalendlyIntegration ? "Calendly" : "Cal.com"} API key is required for client-specific booking tracking.`,
       success: "",
     };
   }
 
-  if (isCalIntegration && !bookingLink) {
+  if ((isCalIntegration || isCalendlyIntegration) && !bookingLink) {
     return {
-      error: "Cal.com booking link is required for client setup.",
+      error: `${isCalendlyIntegration ? "Calendly" : "Cal.com"} booking link is required for client setup.`,
       success: "",
     };
   }
@@ -130,13 +133,13 @@ export async function createClientAction(
       ? {
           id: randomUUID(),
           clientId: client.id,
-          provider: values.integrationProvider?.trim() || (isCalIntegration ? "Cal.com" : "Custom"),
-          label: values.integrationLabel?.trim() || (isCalIntegration ? "Cal booking + webhook" : "Client access"),
+          provider: values.integrationProvider?.trim() || (isCalendlyIntegration ? "Calendly" : isCalIntegration ? "Cal.com" : "Custom"),
+          label: values.integrationLabel?.trim() || (isCalendlyIntegration ? "Calendly booking + webhook" : isCalIntegration ? "Cal booking + webhook" : "Client access"),
           apiKeyHint: maskApiKey(calApiKey),
           status: calApiKey ? "connected" : "pending",
           notes:
             values.integrationNotes?.trim() ||
-            (isCalIntegration && bookingLink ? `Booking: ${bookingLink}` : "Added during client onboarding."),
+            ((isCalIntegration || isCalendlyIntegration) && bookingLink ? `Booking: ${bookingLink}` : "Added during client onboarding."),
           createdAt,
         }
       : undefined;
@@ -166,7 +169,11 @@ export async function createClientAction(
       success: "Client created successfully in local mode.",
       client,
       integration,
-      webhookUrl: isCalIntegration ? getClientWebhookUrl(client.id) : undefined,
+      webhookUrl: isCalendlyIntegration
+        ? getClientCalendlyWebhookUrl(client.id)
+        : isCalIntegration
+          ? getClientWebhookUrl(client.id)
+          : undefined,
     };
   }
 
@@ -213,7 +220,11 @@ export async function createClientAction(
   };
 
   let persistedIntegration: ClientIntegration | undefined;
-  const webhookUrl = isCalIntegration ? getClientWebhookUrl(persistedClient.id) : undefined;
+  const webhookUrl = isCalendlyIntegration
+    ? getClientCalendlyWebhookUrl(persistedClient.id)
+    : isCalIntegration
+      ? getClientWebhookUrl(persistedClient.id)
+      : undefined;
 
   if (integration) {
     const { data: insertedIntegration, error: integrationError } = await (supabase.from(
@@ -260,7 +271,7 @@ export async function createClientAction(
     };
   }
 
-  if (isCalIntegration && calApiKey) {
+  if ((isCalIntegration || isCalendlyIntegration) && calApiKey) {
     const admin = createSupabaseAdminClient();
 
     if (!admin) {
@@ -273,21 +284,29 @@ export async function createClientAction(
       };
     }
 
+    const table = isCalendlyIntegration ? "client_calendly_credentials" : "client_cal_credentials";
+    const payload = isCalendlyIntegration
+      ? {
+          client_id: persistedClient.id,
+          calendly_api_key: calApiKey,
+          booking_link: bookingLink,
+          webhook_url: webhookUrl,
+          webhook_signing_secret: calWebhookSigningSecret,
+        }
+      : {
+          client_id: persistedClient.id,
+          cal_api_key: calApiKey,
+          booking_link: bookingLink,
+          webhook_url: webhookUrl,
+          webhook_signing_secret: calWebhookSigningSecret,
+        };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: calCredError } = await (admin as any).from("client_cal_credentials").upsert(
-      {
-        client_id: persistedClient.id,
-        cal_api_key: calApiKey,
-        booking_link: bookingLink,
-        webhook_url: webhookUrl,
-        webhook_signing_secret: calWebhookSigningSecret,
-      },
-      { onConflict: "client_id" },
-    );
+    const { error: calCredError } = await (admin as any).from(table).upsert(payload, { onConflict: "client_id" });
 
     if (calCredError) {
       return {
-        error: `Client created, but Cal credentials could not be saved securely: ${calCredError.message}`,
+        error: `Client created, but scheduling credentials could not be saved securely: ${calCredError.message}`,
         success: "",
         client: persistedClient,
         integration: persistedIntegration,
