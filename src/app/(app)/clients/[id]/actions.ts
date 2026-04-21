@@ -118,6 +118,64 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
   }
 }
 
+export async function saveClientCalApiKeyAction(clientId: string, formData: FormData) {
+  await requireSession();
+
+  if (!isSupabaseConfigured) {
+    return { error: "Supabase is not configured. Connect Supabase to store API keys." };
+  }
+
+  const apiKey = String(formData.get("calApiKey") ?? "").trim();
+
+  if (!apiKey) {
+    return { error: "Cal API key is required." };
+  }
+
+  if (!apiKey.startsWith("cal_")) {
+    return { error: "Cal API key should start with cal_." };
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return { error: "Supabase admin client is not configured." };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing, error: existingError } = await (admin as any)
+    .from("client_cal_credentials")
+    .select("booking_link, webhook_url, webhook_signing_secret")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { error: existingError.message };
+  }
+
+  const bookingLink = String(existing?.booking_link ?? "");
+  const webhookUrl = String(existing?.webhook_url ?? getClientWebhookUrl(clientId));
+  const webhookSigningSecret = String(existing?.webhook_signing_secret ?? "");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).from("client_cal_credentials").upsert(
+    {
+      client_id: clientId,
+      cal_api_key: apiKey,
+      booking_link: bookingLink,
+      webhook_url: webhookUrl,
+      webhook_signing_secret: webhookSigningSecret,
+    },
+    { onConflict: "client_id" },
+  );
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/settings/webhooks");
+  return { success: true };
+}
+
 export async function deleteClientAction(clientId: string) {
   await requireSession();
 

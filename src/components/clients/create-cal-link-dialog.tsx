@@ -17,7 +17,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCalcomLinkAction } from "@/app/(app)/clients/[id]/actions";
 
-export function CreateCalLinkDialog({ clientId, clientName }: { clientId: string; clientName: string }) {
+export function CreateCalLinkDialog({
+  clientId,
+  clientName,
+  hasCalApiKey,
+}: {
+  clientId: string;
+  clientName: string;
+  hasCalApiKey: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const slugifiedName = clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -38,7 +46,7 @@ export function CreateCalLinkDialog({ clientId, clientName }: { clientId: string
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-xl">
+        <Button variant="outline" size="sm" className="rounded-xl" disabled={!hasCalApiKey}>
           <Link2 className="mr-2 h-4 w-4" />
           Create Link
         </Button>

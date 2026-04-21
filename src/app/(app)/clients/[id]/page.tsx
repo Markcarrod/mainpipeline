@@ -5,6 +5,7 @@ import { ChartCard } from "@/components/shared/chart-card";
 import { ClientProgressCard } from "@/components/shared/client-progress-card";
 import { CreateCalLinkDialog } from "@/components/clients/create-cal-link-dialog";
 import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
+import { SaveCalApiKeyDialog } from "@/components/clients/save-cal-api-key-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   getClientIntegrations,
   getMeetingsBookedThisMonth,
 } from "@/lib/portal-helpers";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function ClientDetailPage({
@@ -40,6 +42,19 @@ export default async function ClientDetailPage({
   const meetings = getClientMeetings(dataset, client.id).slice(0, 8);
   const booked = getMeetingsBookedThisMonth(dataset, client.id);
   const integrations = getClientIntegrations(dataset, client.id);
+  const admin = createSupabaseAdminClient();
+  let hasCalApiKey = false;
+
+  if (admin) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from("client_cal_credentials")
+      .select("cal_api_key")
+      .eq("client_id", client.id)
+      .maybeSingle();
+
+    hasCalApiKey = Boolean(String(data?.cal_api_key ?? "").trim());
+  }
 
   return (
     <div className="space-y-6">
@@ -111,9 +126,13 @@ export default async function ClientDetailPage({
                 <div className="space-y-1.5">
                   <CardTitle>Client integrations</CardTitle>
                   <CardDescription>Scheduling, CRM, and API access notes for this account.</CardDescription>
+                  <p className="text-xs text-slate-500">
+                    Cal API key: <span className="font-medium text-slate-900">{hasCalApiKey ? "Configured" : "Missing"}</span>
+                  </p>
                 </div>
-                <div className="shrink-0 pt-1">
-                  <CreateCalLinkDialog clientId={client.id} clientName={client.name} />
+                <div className="shrink-0 space-y-2 pt-1">
+                  <SaveCalApiKeyDialog clientId={client.id} clientName={client.name} hasCalApiKey={hasCalApiKey} />
+                  <CreateCalLinkDialog clientId={client.id} clientName={client.name} hasCalApiKey={hasCalApiKey} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
