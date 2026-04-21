@@ -39,6 +39,15 @@ create table if not exists public.client_integrations (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.client_cal_credentials (
+  client_id uuid primary key references public.clients(id) on delete cascade,
+  cal_api_key text not null,
+  booking_link text not null,
+  webhook_url text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.accounts (
   id text primary key,
   label text not null,
@@ -73,6 +82,7 @@ create table if not exists public.profiles (
 alter table public.clients enable row level security;
 alter table public.campaigns enable row level security;
 alter table public.client_integrations enable row level security;
+alter table public.client_cal_credentials enable row level security;
 alter table public.accounts enable row level security;
 alter table public.meetings enable row level security;
 alter table public.profiles enable row level security;
@@ -82,6 +92,9 @@ create policy "authenticated insert clients" on public.clients for insert to aut
 create policy "authenticated read campaigns" on public.campaigns for select to authenticated using (true);
 create policy "authenticated read client integrations" on public.client_integrations for select to authenticated using (true);
 create policy "authenticated insert client integrations" on public.client_integrations for insert to authenticated with check (true);
+create policy "service role read client cal credentials" on public.client_cal_credentials for select to service_role using (true);
+create policy "service role insert client cal credentials" on public.client_cal_credentials for insert to service_role with check (true);
+create policy "service role update client cal credentials" on public.client_cal_credentials for update to service_role using (true) with check (true);
 create policy "authenticated read meetings" on public.meetings for select to authenticated using (true);
 create policy "authenticated read accounts" on public.accounts for select to authenticated using (true);
 create policy "authenticated read profiles" on public.profiles for select to authenticated using (auth.uid() = id);

@@ -33,7 +33,7 @@ export function SettingsPanels() {
             <div>
               <CardTitle>Scheduling</CardTitle>
               <CardDescription>
-                Cal.com scheduling can run live with an API key, and webhook events can create meetings once the signing secret is also configured.
+                Cal.com scheduling runs with per-client API keys, and webhook events create meetings once the signing secret is configured.
               </CardDescription>
             </div>
             <Badge variant={calcomReady ? "green" : "outline"}>{calcomReady ? "Connected" : "Demo Mode"}</Badge>
@@ -45,7 +45,7 @@ export function SettingsPanels() {
           </p>
           <p>
             API access:{" "}
-            <span className="font-medium text-slate-900">{calcomReady ? "Configured" : "Not configured"}</span>
+            <span className="font-medium text-slate-900">{calcomReady ? "Per-client enabled" : "Not configured"}</span>
           </p>
           <p>
             Webhook signing:{" "}

@@ -70,6 +70,8 @@ function verifyCalSignature(rawBody: string, signatureHeader: string | null): bo
 // ─── POST — Main webhook handler ────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  const requestClientId = new URL(request.url).searchParams.get("clientId");
+
   // 1. Read raw body (needed for HMAC verification before JSON parsing)
   let rawBody: string;
   try {
@@ -120,14 +122,16 @@ export async function POST(request: Request) {
     );
   }
 
+  const resolvedClientId = meeting?.clientId ?? requestClientId ?? null;
+
   // 6. Log the incoming event
   console.info(
     `[cal-webhook] Received ${eventType} for UID ${meeting.bookingUid}` +
-      (meeting.clientId ? ` | client ${meeting.clientId}` : " | no clientId"),
+      (resolvedClientId ? ` | client ${resolvedClientId}` : " | no clientId"),
   );
 
   // 7. Reject if clientId is missing — we cannot route this meeting
-  if (!meeting.clientId) {
+  if (!resolvedClientId) {
     console.warn(
       `[cal-webhook] bookingUid=${meeting.bookingUid} has no clientId — writing skipped.`
     );
@@ -168,7 +172,7 @@ export async function POST(request: Request) {
     booking_uid: meeting.bookingUid,
 
     // Routing
-    client_id: meeting.clientId,
+    client_id: resolvedClientId,
 
     // Prospect details
     prospect_name: meeting.prospectName,

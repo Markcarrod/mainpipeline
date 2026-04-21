@@ -171,6 +171,12 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
                 <Field label="Provider" name="integrationProvider" placeholder="Cal.com, HubSpot, Slack" optional />
                 <Field label="Label" name="integrationLabel" placeholder="Scheduling access" optional />
                 <Field label="API key or token" name="integrationApiKey" placeholder="Paste token" optional />
+                <Field
+                  label="Cal booking link"
+                  name="calBookingLink"
+                  placeholder="https://cal.com/your-team/discovery"
+                  optional
+                />
                 <Field label="Integration note" name="integrationNotes" placeholder="Used for meeting syncs" optional />
               </div>
             </div>
@@ -183,6 +189,11 @@ export function ClientsPageView({ dataset }: { dataset: PortalDataset }) {
             {state.success ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 {state.success}
+                {state.webhookUrl ? (
+                  <p className="mt-1 break-all">
+                    Client webhook URL: <span className="font-medium">{state.webhookUrl}</span>
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { env } from "@/lib/env";
+import { getClientWebhookUrl } from "@/lib/app-url";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function createCalcomLinkAction(clientId: string, formData: FormData) {
@@ -10,12 +11,28 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
   const rawDuration = formData.get("duration") as string;
   const duration = parseInt(rawDuration, 10);
 
-  if (!env.calcomApiKey) {
-    return { error: "CALCOM_API_KEY is not configured in the environment." };
+  const admin = createSupabaseAdminClient();
+  let clientCalApiKey = "";
+
+  if (admin) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: credential } = await (admin as any)
+      .from("client_cal_credentials")
+      .select("cal_api_key")
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    clientCalApiKey = String(credential?.cal_api_key ?? "");
+  }
+
+  const calApiKey = clientCalApiKey;
+
+  if (!calApiKey) {
+    return { error: "No Cal.com API key found for this client. Add it in client setup." };
   }
 
   try {
-    const res = await fetch("https://api.cal.com/v1/event-types?apiKey=" + env.calcomApiKey, {
+    const res = await fetch("https://api.cal.com/v1/event-types?apiKey=" + encodeURIComponent(calApiKey), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -23,6 +40,10 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
         slug,
         length: duration,
         hidden: false,
+        metadata: {
+          clientId,
+          webhookUrl: getClientWebhookUrl(clientId),
+        },
       }),
     });
 
@@ -41,9 +62,9 @@ export async function createCalcomLinkAction(clientId: string, formData: FormDat
       client_id: clientId,
       provider: "Cal.com",
       label: title,
-      api_key_hint: "cal_••••" + env.calcomApiKey.slice(-4),
+      api_key_hint: "cal_****" + calApiKey.slice(-4),
       status: "connected",
-      notes: `Link: https://cal.com/${username}/${slug}`,
+      notes: `Link: https://cal.com/${username}/${slug} | Webhook: ${getClientWebhookUrl(clientId)}`,
     });
 
     if (insertError) {

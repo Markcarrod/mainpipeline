@@ -3,8 +3,10 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getClientWebhookUrl } from "@/lib/app-url";
 import { isSupabaseConfigured } from "@/lib/env";
 import { upsertLocalClient } from "@/lib/local-portal-store";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Client, ClientIntegration, ClientStatus } from "@/types/portal";
 
@@ -13,6 +15,7 @@ export interface CreateClientState {
   success: string;
   client?: Client;
   integration?: ClientIntegration;
+  webhookUrl?: string;
 }
 
 const clientSchema = z.object({
@@ -28,6 +31,7 @@ const clientSchema = z.object({
   integrationProvider: z.string().optional(),
   integrationLabel: z.string().optional(),
   integrationApiKey: z.string().optional(),
+  calBookingLink: z.string().url("Use a valid booking link URL.").optional().or(z.literal("")),
   integrationNotes: z.string().optional(),
 });
 
@@ -62,6 +66,7 @@ export async function createClientAction(
     integrationProvider: formData.get("integrationProvider"),
     integrationLabel: formData.get("integrationLabel"),
     integrationApiKey: formData.get("integrationApiKey"),
+    calBookingLink: formData.get("calBookingLink"),
     integrationNotes: formData.get("integrationNotes"),
   });
 
@@ -73,6 +78,28 @@ export async function createClientAction(
   }
 
   const values = parsed.data;
+  const isCalIntegration = Boolean(
+    values.integrationApiKey?.trim() ||
+      values.calBookingLink?.trim() ||
+      values.integrationProvider?.toLowerCase().includes("cal"),
+  );
+  const bookingLink = values.calBookingLink?.trim() || "";
+  const calApiKey = values.integrationApiKey?.trim() || "";
+
+  if (isCalIntegration && !calApiKey) {
+    return {
+      error: "Cal.com API key is required for client-specific Cal tracking.",
+      success: "",
+    };
+  }
+
+  if (isCalIntegration && !bookingLink) {
+    return {
+      error: "Cal.com booking link is required for client setup.",
+      success: "",
+    };
+  }
+
   const createdAt = new Date().toISOString();
   const client: Client = {
     id: randomUUID(),
@@ -89,15 +116,17 @@ export async function createClientAction(
   };
 
   const integration: ClientIntegration | undefined =
-    values.integrationProvider || values.integrationLabel || values.integrationApiKey || values.integrationNotes
+    values.integrationProvider || values.integrationLabel || values.integrationApiKey || values.integrationNotes || values.calBookingLink
       ? {
           id: randomUUID(),
           clientId: client.id,
-          provider: values.integrationProvider?.trim() || "Custom",
-          label: values.integrationLabel?.trim() || "Client access",
-          apiKeyHint: maskApiKey(values.integrationApiKey),
-          status: values.integrationApiKey ? "connected" : "pending",
-          notes: values.integrationNotes?.trim() || "Added during client onboarding.",
+          provider: values.integrationProvider?.trim() || (isCalIntegration ? "Cal.com" : "Custom"),
+          label: values.integrationLabel?.trim() || (isCalIntegration ? "Cal booking + webhook" : "Client access"),
+          apiKeyHint: maskApiKey(calApiKey),
+          status: calApiKey ? "connected" : "pending",
+          notes:
+            values.integrationNotes?.trim() ||
+            (isCalIntegration && bookingLink ? `Booking: ${bookingLink}` : "Added during client onboarding."),
           createdAt,
         }
       : undefined;
@@ -127,6 +156,7 @@ export async function createClientAction(
       success: "Client created successfully in local mode.",
       client,
       integration,
+      webhookUrl: isCalIntegration ? getClientWebhookUrl(client.id) : undefined,
     };
   }
 
@@ -173,6 +203,7 @@ export async function createClientAction(
   };
 
   let persistedIntegration: ClientIntegration | undefined;
+  const webhookUrl = isCalIntegration ? getClientWebhookUrl(persistedClient.id) : undefined;
 
   if (integration) {
     const { data: insertedIntegration, error: integrationError } = await (supabase.from(
@@ -190,7 +221,10 @@ export async function createClientAction(
         label: integration.label,
         api_key_hint: integration.apiKeyHint || null,
         status: integration.status,
-        notes: integration.notes,
+        notes:
+          isCalIntegration && bookingLink
+            ? `${integration.notes ?? ""}\nWebhook: ${webhookUrl ?? ""}`.trim()
+            : integration.notes,
       })
       .select()
       .single();
@@ -216,6 +250,40 @@ export async function createClientAction(
     };
   }
 
+  if (isCalIntegration && calApiKey) {
+    const admin = createSupabaseAdminClient();
+
+    if (!admin) {
+      return {
+        error:
+          "Client created, but secure Cal.com credential storage failed. Configure SUPABASE_SERVICE_ROLE_KEY in Vercel.",
+        success: "",
+        client: persistedClient,
+        integration: persistedIntegration,
+      };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: calCredError } = await (admin as any).from("client_cal_credentials").upsert(
+      {
+        client_id: persistedClient.id,
+        cal_api_key: calApiKey,
+        booking_link: bookingLink,
+        webhook_url: webhookUrl,
+      },
+      { onConflict: "client_id" },
+    );
+
+    if (calCredError) {
+      return {
+        error: `Client created, but Cal credentials could not be saved securely: ${calCredError.message}`,
+        success: "",
+        client: persistedClient,
+        integration: persistedIntegration,
+      };
+    }
+  }
+
   revalidatePath("/clients");
   revalidatePath(`/clients/${persistedClient.id}`);
 
@@ -224,5 +292,6 @@ export async function createClientAction(
     success: "Client created successfully.",
     client: persistedClient,
     integration: persistedIntegration,
+    webhookUrl,
   };
 }

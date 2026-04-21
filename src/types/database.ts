@@ -30,6 +30,16 @@ export interface Database {
           created_at: string;
         };
       };
+      client_cal_credentials: {
+        Row: {
+          client_id: string;
+          cal_api_key: string;
+          booking_link: string;
+          webhook_url: string;
+          created_at: string;
+          updated_at: string;
+        };
+      };
       campaigns: {
         Row: {
           id: string;
