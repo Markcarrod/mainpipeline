@@ -30,14 +30,14 @@ export default async function CampaignDetailPage({
       <PageHeader
         eyebrow="Campaign Detail"
         title={campaign.name}
-        description={`${getClientName(dataset, campaign.clientId)} • ${campaign.channel}`}
+        description={`${getClientName(dataset, campaign.clientId)} | ${campaign.channel}`}
         action={<StatusBadge status={campaign.status} />}
       />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Messages Sent" value={campaign.messagesSent.toLocaleString()} delta="+7.8%" />
+        <KpiCard label="Messages Sent" value={campaign.messagesSent.toLocaleString()} delta="Current period" />
         <KpiCard label="Replies" value={String(campaign.replies)} delta={formatPercent((campaign.replies / campaign.messagesSent) * 100)} />
         <KpiCard label="Positive Replies" value={String(campaign.positiveReplies)} delta={formatPercent((campaign.positiveReplies / campaign.replies) * 100)} />
-        <KpiCard label="Meetings Booked" value={String(campaign.meetingsBooked)} delta="Strong pacing" />
+        <KpiCard label="Meetings Booked" value={String(campaign.meetingsBooked)} delta="Current period" />
       </div>
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ChartCard title="Booked meetings trend" description="Performance trend mirrored against the dashboard period.">
@@ -110,3 +110,4 @@ export default async function CampaignDetailPage({
     </div>
   );
 }
+

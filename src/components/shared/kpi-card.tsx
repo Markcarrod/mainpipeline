@@ -1,4 +1,3 @@
-import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function KpiCard({
@@ -28,9 +27,8 @@ export function KpiCard({
             </div>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <div className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">
-              <ArrowUpRight className="h-3.5 w-3.5" />
-              {delta ?? "Stable"}
+            <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+              {delta ?? "Current period"}
             </div>
             <span className="text-slate-500">{hint}</span>
           </div>

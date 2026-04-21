@@ -45,12 +45,12 @@ export default async function DashboardPage() {
         />
         <div className="mt-8 grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            <KpiCard label="Messages Sent" value={formatNumber(metrics.messagesSent)} delta="+11.4%" hint="vs last 30 days" />
-            <KpiCard label="Replies" value={formatNumber(metrics.replies)} delta="+8.2%" hint={formatPercent(metrics.replyRate)} />
-            <KpiCard label="Positive Replies" value={formatNumber(metrics.positiveReplies)} delta="+6.1%" hint={formatPercent(metrics.positiveReplyRate)} />
-            <KpiCard label="Meetings Booked" value={formatNumber(metrics.meetingsBooked)} delta="+9.7%" hint="Across all campaigns" />
-            <KpiCard label="Show Rate" value={formatPercent(metrics.showRate)} delta="+3.4 pts" hint="Completed vs booked" />
-            <KpiCard label="Active Clients" value={String(metrics.activeClients)} delta="4 retained" hint={formatCurrency(11600)} />
+            <KpiCard label="Messages Sent" value={formatNumber(metrics.messagesSent)} delta="Current period" hint="Last 30 days" />
+            <KpiCard label="Replies" value={formatNumber(metrics.replies)} delta="Current period" hint={formatPercent(metrics.replyRate)} />
+            <KpiCard label="Positive Replies" value={formatNumber(metrics.positiveReplies)} delta="Current period" hint={formatPercent(metrics.positiveReplyRate)} />
+            <KpiCard label="Meetings Booked" value={formatNumber(metrics.meetingsBooked)} delta="Current period" hint="Across all campaigns" />
+            <KpiCard label="Show Rate" value={formatPercent(metrics.showRate)} delta="Current period" hint="Completed vs booked" />
+            <KpiCard label="Active Clients" value={String(metrics.activeClients)} delta="Current period" hint={formatCurrency(11600)} />
           </div>
           <Card className="rounded-[28px] border-blue-100 bg-[linear-gradient(180deg,_rgba(239,246,255,0.9)_0%,_rgba(255,255,255,1)_100%)]">
             <CardContent className="flex h-full flex-col justify-between p-7">
@@ -60,10 +60,10 @@ export default async function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-3xl font-semibold leading-tight">
-                    Three active clients are pacing above 80% of target before month-end.
+                    Current delivery snapshot across active clients.
                   </h3>
                   <p className="mt-3 max-w-md text-sm leading-6 text-slate-600">
-                    Northstar Demand leads volume, while Growth Marketing Agency is closest to hitting target in full.
+                    Use this section for a short plain-language status update during internal reviews and client calls.
                   </p>
                 </div>
               </div>
@@ -182,3 +182,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+

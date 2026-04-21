@@ -6,12 +6,13 @@
  * Use this URL to verify the webhook endpoint is reachable before
  * adding it to Cal.com settings:
  *
- *   GET https://app.pipelineportal.com/api/webhooks/cal/test
+ *   GET https://<your-domain>/api/webhooks/calcom/test
  *
  * Returns { status: "ok" } with a 200.
  */
 
 import { NextResponse } from "next/server";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { env } from "@/lib/env";
 
 export async function GET() {
@@ -23,7 +24,7 @@ export async function GET() {
   return NextResponse.json({
     status: "ok",
     message: "Pipeline Portal Cal.com webhook endpoint is live.",
-    webhookUrl: "https://app.pipelineportal.com/api/webhooks/calcom",
+    webhookUrl: `${getAppBaseUrl()}/api/webhooks/calcom`,
     configured,
     timestamp: new Date().toISOString(),
   });
