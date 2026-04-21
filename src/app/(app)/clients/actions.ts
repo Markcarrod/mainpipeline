@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { isSupabaseConfigured } from "@/lib/env";
+import { upsertLocalClient } from "@/lib/local-portal-store";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Client, ClientIntegration, ClientStatus } from "@/types/portal";
 
@@ -102,9 +103,13 @@ export async function createClientAction(
       : undefined;
 
   if (!isSupabaseConfigured) {
+    await upsertLocalClient(client, integration);
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${client.id}`);
+
     return {
       error: "",
-      success: "Client created in local demo mode for this session.",
+      success: "Client created successfully in local mode.",
       client,
       integration,
     };
